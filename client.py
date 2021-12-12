@@ -1,47 +1,55 @@
 import socket
 import base64
+import hashlib
+import pyDHE
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto import Util
-import hashlib
-import pyDHE
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('localhost', 4444))
-
-class AESCipher(object):
+class AESCipherGCM(object):
     def __init__(self, key): 
-        self.bs = AES.block_size
+        self.blockSize = AES.block_size
         self.key = hashlib.sha256(key).digest()
 
-    def encrypt(self, raw):
-        raw = self._pad(raw)
-        iv = Random.new().read(AES.block_size)
-        cipher = AES.new(self.key, AES.MODE_GCM, iv)
-        return base64.b64encode(iv + cipher.encrypt(raw.encode()))
-
-    def decrypt(self, enc):
-        enc = base64.b64decode(enc)
-        iv = enc[:AES.block_size]
-        cipher = AES.new(self.key, AES.MODE_GCM, iv)
-        return self._unpad(cipher.decrypt(enc[AES.block_size:])).decode('utf-8')
-
-    def _pad(self, s):
-        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
+    def _pad(self, payload):
+        padSize = self.blockSize - len(payload) % self.blockSize
+        return payload + chr(padSize) * padSize
 
     @staticmethod
-    def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
+    def _unpad(payload):
+        #length = self.blockSize - len(payload) % self.blockSize
+        #return payload[:length]
+        return payload[:-ord(payload[len(payload)-1:])]
 
+    def encrypt(self, plaintext):
+        plaintext = self._pad(plaintext)
+        initializationVector = Random.new().read(AES.block_size)
+        # Use AES-GCM for encryption
+        aes_gcm = AES.new(self.key, AES.MODE_GCM, initializationVector)
+        return base64.b64encode(initializationVector + aes_gcm.encrypt(plaintext.encode()))
+
+    def decrypt(self, ciphertext):
+        ciphertext = base64.b64decode(ciphertext)
+        initializationVector = ciphertext[:AES.block_size]
+        aes_gcm = AES.new(self.key, AES.MODE_GCM, initializationVector)
+        return self._unpad(aes_gcm.decrypt(ciphertext[AES.block_size:])).decode('utf-8')
+
+    
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('localhost', 8080))
 
 key = pyDHE.new(16)
 shared_key = key.negotiate(sock)
 
 finalKey = Util.number.long_to_bytes(shared_key)
-print(finalKey)
+print('Final key is: ', finalKey)
 
 data=sock.recv(4096)
-decoded=AESCipher(finalKey).decrypt(data.decode('utf-8'))
-print(str(decoded))
+try:
+    decoded=AESCipherGCM(finalKey).decrypt(data.decode('utf-8'))
+    print('Decoded string is: ' + str(decoded))
+except:
+    print("Decryption failed. Attack detected")
 
 sock.close()
