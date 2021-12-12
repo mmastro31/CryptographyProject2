@@ -16,6 +16,10 @@ Man-in-the-middle can intercept and make modification to email content. If this 
 AES-GCM is IND-CCA2 , which protects against data eavesdropping, data modification, data originator spoofing and data replay
 Create a sender socket and receiver socket with python to represent sending emails
 
+4. Implemented with ibraries
+pyDHE for Diffie-Hellman
+PyCryptodome for AES-GCM
+
 -----------------------------------------------------------------------------------
 Running the application:
 
