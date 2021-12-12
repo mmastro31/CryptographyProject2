@@ -17,5 +17,7 @@ Create a sender socket and receiver socket with python to represent sending emai
 
 -----------------------------------------------------------------------------------
 Running the application:
+
 Run server first in one terminal: python server.py
+
 Run client on another terminal: python client.py
