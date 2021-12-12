@@ -35,30 +35,47 @@ class AESCipherGCM(object):
         return self._unpad(aes_gcm.decrypt(ciphertext[AES.block_size:])).decode('utf-8')
 
 
-string="This is the email"
+def send_message(key,socket):
+    print("please type message.")
+    message = str(input())
+    enc_string_2=AESCipherGCM(key).encrypt(message)
+    socket.send(enc_string_2)
+    print("Encrypted message sent")
+
+def receive_message(key,socket):
+    data=socket.recv(4096)
+    try:
+        decoded=AESCipherGCM(key).decrypt(data.decode('utf-8'))
+        print('Decoded string is: ' + str(decoded))
+    except:
+        print("Decryption failed. Attack detected")
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(('localhost', 8080))
+    sock.listen(5)
+    print("Listening for connections...")
+
+    conn, addr = sock.accept()
+
+    #Key exchange
+    password = pyDHE.new(16)
+    shared_key = password.negotiate(conn)
+    finalKey = Util.number.long_to_bytes(shared_key)
+    print('Keys shared')
+
+    while True:
+        print("Waiting for client response")
+        answer = conn.recv(1024).decode()
+        if answer == "send":
+            receive_message(finalKey,conn)
+        elif answer == "receive":
+            send_message(finalKey,conn)
+        else:
+            print("client exited. Goodbye")
+            break
+
+    conn.close()
 
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.bind(('localhost', 8080))
-sock.listen(5)
-print("Listening for connections...")
-
-conn, addr = sock.accept()
-
-#Key exchange
-password = pyDHE.new(16)
-shared_key = password.negotiate(conn)
-finalKey = Util.number.long_to_bytes(shared_key)
-
-
-enc_string=str(AESCipherGCM(finalKey).encrypt(string))
-enc_string_2=AESCipherGCM(finalKey).encrypt(string)
-dec_string=str(AESCipherGCM(finalKey).decrypt(enc_string_2))
-#print("This is the password " + password)
-print("Decrypted string: " + string)
-print("Encrypted string: " + enc_string)
-print("Decrypted string (v2): " + str(dec_string))
-
-conn.send(enc_string_2)
-
-conn.close()
+main()

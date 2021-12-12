@@ -34,22 +34,53 @@ class AESCipherGCM(object):
         aes_gcm = AES.new(self.key, AES.MODE_GCM, initializationVector)
         return self._unpad(aes_gcm.decrypt(ciphertext[AES.block_size:])).decode('utf-8')
 
+
+
+
+def send_message(key,socket):
+    command = "send"
+    socket.send(command.encode())
+    print("please type message.")
+    message = str(input())
+    enc_string_2=AESCipherGCM(key).encrypt(message)
+    socket.send(enc_string_2)
+    print("Encrypted message sent")
+
+def receive_message(key,socket):
+    command = "receive"
+    socket.send(command.encode())
+    data=socket.recv(4096)
+    try:
+        decoded=AESCipherGCM(key).decrypt(data.decode('utf-8'))
+        print('Decoded string is: ' + str(decoded))
+    except:
+        print("Decryption failed. Attack detected")
+
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(('localhost', 8080))
+
+    key = pyDHE.new(16)
+    shared_key = key.negotiate(sock)
+    finalKey = Util.number.long_to_bytes(shared_key)
+    print('Keys shared')
     
+    while True:
+        print('Would you like to send or receive message?')
+        print('Please type "send", "receive", or "exit"')
+        user_input = str(input())
+        if user_input == "send":
+            send_message(finalKey,sock)
+        elif user_input == "receive":
+            receive_message(finalKey,sock)
+        elif user_input == "exit":
+            print('Exiting. Goodbye')
+            break
+        else:
+            print('input not accepted. Try again.')
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('localhost', 8080))
+    sock.close()
 
-key = pyDHE.new(16)
-shared_key = key.negotiate(sock)
-
-finalKey = Util.number.long_to_bytes(shared_key)
-print('Final key is: ', finalKey)
-
-data=sock.recv(4096)
-try:
-    decoded=AESCipherGCM(finalKey).decrypt(data.decode('utf-8'))
-    print('Decoded string is: ' + str(decoded))
-except:
-    print("Decryption failed. Attack detected")
-
-sock.close()
+main()
