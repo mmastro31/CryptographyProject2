@@ -1,5 +1,6 @@
 # Cryptography Project 2
 Applied Cryptography - Fall 2021
+
 Team Name(s): Leo Ho, Matteo Mastrogiovanni, Nathan Cantu
 
 Project Type: Project type 1
